@@ -1,0 +1,5 @@
+.wrapper { text-align: center; padding: 80px 20px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.emoji { font-size: 48px; }
+.wrapper h1 { font-size: 40px; color: #1a1a2e; }
+.wrapper p { color: #6b7280; }
+.link { margin-top: 12px; color: #c9a84c; font-weight: 700; }

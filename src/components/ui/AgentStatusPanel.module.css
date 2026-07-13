@@ -1,0 +1,38 @@
+.panel { display: flex; flex-direction: column; gap: 20px; }
+
+.summaryRow {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px;
+}
+.summaryCard {
+  display: flex; align-items: center; gap: 12px;
+  background: #fff; border: 1px solid #eef0f5; border-radius: 12px;
+  padding: 14px 16px;
+}
+.summaryIcon {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: #fef3c7; color: #92400e;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.summaryLabel { font-size: 12px; color: #6b7280; }
+.summaryValue { font-size: 16px; font-weight: 800; color: #1a1a2e; text-transform: capitalize; }
+
+.agentsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+}
+.agentCard {
+  background: #fff; border: 1px solid #eef0f5; border-radius: 12px; padding: 14px;
+}
+.agentHeader { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 14px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #d1d5db; }
+.dotActive { background: #059669; box-shadow: 0 0 0 3px rgba(5,150,105,0.15); }
+.agentMetrics { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: #6b7280; }
+
+.memoryRow {
+  font-size: 12px; color: #6b7280;
+  background: #f8f9fc; border-radius: 10px; padding: 10px 14px;
+}

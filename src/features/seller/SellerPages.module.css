@@ -1,0 +1,44 @@
+.title { font-size: 24px; margin-bottom: 20px; }
+
+/* Dashboard */
+.metricsGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 28px; }
+.metricCard { display: flex; align-items: center; gap: 14px; }
+.metricIcon { width: 40px; height: 40px; border-radius: 10px; background: #fef3c7; color: #92400e; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.metricLabel { font-size: 12px; color: #6b7280; }
+.metricValue { font-size: 20px; font-weight: 800; color: #1a1a2e; }
+
+.linksRow { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+.linkCard {
+  display: flex; align-items: flex-start; gap: 14px;
+  background: #fff; border: 1px solid #eef0f5; border-radius: 14px; padding: 20px;
+  transition: box-shadow 0.15s ease;
+}
+.linkCard:hover { box-shadow: 0 8px 24px rgba(15,23,42,0.08); }
+.linkCard p { color: #6b7280; font-size: 13px; margin-top: 4px; }
+
+/* Orders */
+.ordersList { display: flex; flex-direction: column; gap: 12px; }
+.orderCard { display: flex; flex-direction: column; gap: 10px; }
+.orderHeader { display: flex; align-items: center; justify-content: space-between; }
+.orderMeta { color: #9ca3af; font-size: 12px; font-weight: 400; }
+.orderItems { font-size: 13px; color: #6b7280; }
+.orderFooter { display: flex; align-items: center; justify-content: space-between; }
+.guia { font-size: 12px; color: #059669; font-weight: 700; }
+
+/* Inventory */
+.alertBanner { background: #fef3c7; color: #92400e; font-size: 13px; font-weight: 600; margin-bottom: 16px; }
+.inventoryTable { background: #fff; border: 1px solid #eef0f5; border-radius: 14px; overflow: hidden; }
+.inventoryHeaderRow, .inventoryRow {
+  display: grid; grid-template-columns: 2fr 1fr 1fr 0.8fr 0.6fr 1fr;
+  padding: 12px 18px; font-size: 13px; align-items: center;
+}
+.inventoryHeaderRow { background: #f8f9fc; font-weight: 700; color: #6b7280; font-size: 11px; text-transform: uppercase; }
+.inventoryRow { border-top: 1px solid #f0f0f5; }
+.prodName { font-weight: 600; }
+.capitalize { text-transform: capitalize; }
+
+@media (max-width: 720px) {
+  .inventoryHeaderRow, .inventoryRow { grid-template-columns: 2fr 1fr 1fr; }
+  .inventoryHeaderRow span:nth-child(3), .inventoryHeaderRow span:nth-child(4),
+  .inventoryRow span:nth-child(3), .inventoryRow span:nth-child(4) { display: none; }
+}

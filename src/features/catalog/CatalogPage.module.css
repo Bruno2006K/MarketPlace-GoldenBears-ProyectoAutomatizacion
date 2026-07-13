@@ -1,0 +1,43 @@
+.hero { padding: 32px 0 24px; text-align: center; }
+.hero h1 { font-size: 30px; color: #1a1a2e; }
+.hero p { color: #6b7280; margin-top: 8px; font-size: 15px; }
+
+.searchBar {
+  display: flex; align-items: center; gap: 10px;
+  max-width: 560px; margin: 24px auto 0;
+  background: #fff; border: 1px solid #eef0f5; border-radius: 12px;
+  padding: 6px 6px 6px 16px;
+  box-shadow: 0 4px 20px rgba(15,23,42,0.05);
+}
+.searchIcon { color: #9ca3af; flex-shrink: 0; }
+.searchInput { flex: 1; border: none; outline: none; font-size: 14px; padding: 10px 0; }
+
+.categorias { display: flex; justify-content: center; gap: 8px; margin-top: 18px; flex-wrap: wrap; }
+.catBtn, .catActive {
+  padding: 6px 16px; border-radius: 999px; font-size: 13px; font-weight: 600;
+  border: 1px solid #eef0f5; background: #fff; color: #6b7280;
+  text-transform: capitalize;
+}
+.catActive { background: #1a1a2e; color: #c9a84c; border-color: #1a1a2e; }
+
+.iaNote {
+  text-align: center; font-size: 13px; color: #92400e;
+  background: #fef3c7; border-radius: 10px; padding: 10px 16px;
+  margin: 8px 0 24px; max-width: 640px; margin-left: auto; margin-right: auto;
+}
+
+.empty { text-align: center; color: #9ca3af; padding: 40px 0; }
+
+.productCard { overflow: hidden; display: flex; flex-direction: column; }
+.productImg { width: 100%; height: 170px; object-fit: cover; background: #f3f4f6; }
+.productBody { padding: 14px; display: flex; flex-direction: column; gap: 4px; }
+.productBrand { font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.04em; }
+.productName { font-size: 14px; font-weight: 700; line-height: 1.3; min-height: 36px; }
+.rating { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #6b7280; }
+.razon { font-size: 11px; color: #92400e; font-style: italic; }
+.priceRow { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.price { font-size: 17px; font-weight: 800; color: #1a1a2e; }
+.addBtn { width: 100%; margin-top: 8px; }
+
+.recSection { margin-top: 40px; }
+.recSection h2 { font-size: 18px; margin-bottom: 16px; }

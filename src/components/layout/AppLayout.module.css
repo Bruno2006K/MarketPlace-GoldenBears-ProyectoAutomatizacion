@@ -1,0 +1,42 @@
+.layout { min-height: 100%; display: flex; flex-direction: column; }
+
+.header {
+  background: linear-gradient(135deg, #1a1a2e, #0f3460);
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+}
+.headerInner {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 68px;
+}
+
+.brand { display: flex; align-items: center; gap: 8px; color: #c9a84c; font-weight: 800; font-size: 18px; }
+.brandIcon { font-size: 24px; }
+
+.nav { display: flex; align-items: center; gap: 24px; }
+.navLink, .navActive {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 600; color: #cbd5e1;
+  padding: 6px 4px; border-bottom: 2px solid transparent;
+  transition: color 0.15s ease;
+}
+.navLink:hover { color: #fff; }
+.navActive { color: #c9a84c; border-bottom-color: #c9a84c; }
+
+.cartLink { position: relative; color: #fff; display: flex; }
+.cartBadge {
+  position: absolute; top: -8px; right: -10px;
+  background: #c9a84c; color: #1a1a2e;
+  font-size: 11px; font-weight: 800;
+  min-width: 18px; height: 18px; border-radius: 999px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 4px;
+}
+
+.main { flex: 1; padding: 32px 0 64px; }
+
+.footer {
+  padding: 20px 0; text-align: center;
+  font-size: 12px; color: #9ca3af;
+  border-top: 1px solid #eef0f5;
+}

@@ -1,0 +1,38 @@
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  transition: transform 0.12s ease, box-shadow 0.12s ease, opacity 0.12s ease;
+  white-space: nowrap;
+}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.primary { background: linear-gradient(135deg, #1a1a2e, #0f3460); color: #c9a84c; }
+.primary:hover:not(:disabled) { box-shadow: 0 6px 18px rgba(15, 52, 96, 0.35); }
+
+.gold { background: #c9a84c; color: #1a1a2e; }
+.gold:hover:not(:disabled) { box-shadow: 0 6px 18px rgba(201, 168, 76, 0.4); }
+
+.ghost { background: transparent; color: #1a1a2e; border: 1px solid #eef0f5; }
+.ghost:hover:not(:disabled) { background: #f8f9fc; }
+
+.danger { background: #fee2e2; color: #dc2626; }
+.danger:hover:not(:disabled) { background: #fecaca; }
+
+.sm { padding: 6px 12px; font-size: 13px; }
+.md { padding: 10px 18px; font-size: 14px; }
+.lg { padding: 14px 24px; font-size: 15px; }
+
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: currentColor;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
