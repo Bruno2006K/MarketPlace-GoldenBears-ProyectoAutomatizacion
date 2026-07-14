@@ -71,6 +71,7 @@ export function AgentProvider({ children }) {
   const procesarCheckout = useCallback((params) => orchestrator.procesarCheckout(params), [])
   const despacharPedido = useCallback((ordenId, guia) => orchestrator.despacharPedido(ordenId, guia), [])
   const procesarReclamo = useCallback((params) => orchestrator.procesarReclamo(params), [])
+  const enviarMensajeChatSoporte = useCallback((params) => orchestrator.enviarMensajeChatSoporte(params), [])
   const resolverTicketManualmente = useCallback((ticketId, resolucion) => {
     const res = orchestrator.resolverTicketManualmente(ticketId, resolucion)
     setTicketsStore(orchestrator.getTicketsStore())
@@ -89,6 +90,7 @@ export function AgentProvider({ children }) {
     procesarCheckout,
     despacharPedido,
     procesarReclamo,
+    enviarMensajeChatSoporte,
     resolverTicketManualmente,
     refreshStatus: () => setSystemStatus(orchestrator.getSystemStatus()),
   }

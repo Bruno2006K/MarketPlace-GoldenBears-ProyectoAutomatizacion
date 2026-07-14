@@ -32,6 +32,7 @@ import { eventBus, EVENT_TYPES } from './EventBus.js'
 import { sharedMemory, MEMORY_KEYS } from './SharedMemory.js'
 import { checkoutGraph } from './graphs/checkoutGraph.js'
 import { resolutionGraph } from './graphs/resolutionGraph.js'
+import { resolutionChatGraph } from './graphs/resolutionChatGraph.js'
 
 /** AgentRegistry — Service Locator para descubrir agentes en tiempo de ejecución. */
 class AgentRegistry {
@@ -188,6 +189,31 @@ class AgentOrchestratorClass {
   /** resolverTicketManualmente — Aplica la decisión humana al ticket (HITL). */
   resolverTicketManualmente(ticketId, resolucionAprobada) {
     return resolutionAgent.resolverTicketManualmente(ticketId, resolucionAprobada)
+  }
+
+  /**
+   * enviarMensajeChatSoporte — Un turno del chat conversacional de soporte
+   * (resolutionChatGraph.js). thread_id = conversationId, estable durante
+   * toda la conversación (lo genera la UI una vez al abrir el chat), así el
+   * checkpointer recuerda la fase entre mensajes.
+   */
+  async enviarMensajeChatSoporte({ conversationId, usuarioId = 'USR-001', ordenIdHint = null, mensaje }) {
+    this._metrics.totalOrchestrations++
+
+    const finalState = await resolutionChatGraph.invoke(
+      { conversationId, usuarioId, ordenIdHint, ultimoMensaje: mensaje },
+      { configurable: { thread_id: conversationId } },
+    )
+
+    const ultimoMensajeAgente = [...finalState.historial].reverse().find((m) => m.role === 'agente')
+
+    return {
+      respuesta: ultimoMensajeAgente?.content || '',
+      fase: finalState.fase,
+      needsHumanReview: finalState.needsHumanReview,
+      ticketId: finalState.ticketId,
+      historial: finalState.historial,
+    }
   }
 
   getTicketsStore() { return resolutionAgent.getTicketsStore() }

@@ -1,46 +1,70 @@
-import { useState } from 'react'
-import { LifeBuoy, AlertCircle, CheckCircle, Clock, ShieldAlert } from 'lucide-react'
+import { useState, useRef, useEffect } from 'react'
+import { LifeBuoy, Send, ShieldAlert, CheckCircle, RotateCcw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useAgents } from '../../context/AgentContext.jsx'
+import { uuid } from '../../agents/core/uuid.js'
 import Card from '../../components/ui/Card.jsx'
 import Button from '../../components/ui/Button.jsx'
-import Input from '../../components/ui/Input.jsx'
 import styles from './CustomerSupportPage.module.css'
 
+const SALUDO_INICIAL = {
+  role: 'agente',
+  content: 'Hola, soy el asistente de soporte de Golden Bears. Cuéntame qué pasó con tu pedido y te ayudo a resolverlo.',
+  timestamp: new Date().toISOString(),
+}
+
 export default function CustomerSupportPage() {
-  const { procesarReclamo, ordersStore } = useAgents()
+  const { enviarMensajeChatSoporte, ordersStore } = useAgents()
   const [usuarioId, setUsuarioId] = useState('USR-001')
   const [ordenId, setOrdenId] = useState('')
-  const [textoQueja, setTextoQueja] = useState('')
-  const [procesando, setProcesando] = useState(false)
-  const [ultimoTicket, setUltimoTicket] = useState(null)
+  const [conversationId, setConversationId] = useState(() => uuid())
+  const [mensajes, setMensajes] = useState([SALUDO_INICIAL])
+  const [texto, setTexto] = useState('')
+  const [enviando, setEnviando] = useState(false)
+  const [fase, setFase] = useState('inicio')
+  const [ticketId, setTicketId] = useState(null)
+  const scrollRef = useRef(null)
 
-  const handleSubmit = async (e) => {
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' })
+  }, [mensajes])
+
+  const cerrado = fase === 'cerrado' || fase === 'escalado_humano'
+
+  const handleEnviar = async (e) => {
     e.preventDefault()
-    if (!textoQueja.trim()) {
-      toast.error('Por favor escribe el detalle de tu reclamo')
-      return
-    }
+    const contenido = texto.trim()
+    if (!contenido) return
 
-    setProcesando(true)
+    setMensajes((prev) => [...prev, { role: 'usuario', content: contenido, timestamp: new Date().toISOString() }])
+    setTexto('')
+    setEnviando(true)
+
     try {
-      const res = await procesarReclamo({
+      const res = await enviarMensajeChatSoporte({
+        conversationId,
         usuarioId,
-        ordenId: ordenId || null,
-        textoQueja
+        ordenIdHint: ordenId || null,
+        mensaje: contenido,
       })
-      if (res.success) {
-        setUltimoTicket(res.result)
-        toast.success('Tu reclamo ha sido procesado por el ResolutionAgent')
-      } else {
-        toast.error('Error al procesar el reclamo: ' + res.error)
-      }
+      setMensajes((prev) => [...prev, { role: 'agente', content: res.respuesta, timestamp: new Date().toISOString() }])
+      setFase(res.fase)
+      setTicketId(res.ticketId)
     } catch (err) {
-      console.error('[CustomerSupportPage] procesarReclamo falló:', err)
+      console.error('[CustomerSupportPage] enviarMensajeChatSoporte falló:', err)
       toast.error('Error en el sistema de soporte')
+      setMensajes((prev) => [...prev, { role: 'agente', content: 'Tuve un problema técnico procesando tu mensaje. ¿Puedes intentarlo de nuevo?', timestamp: new Date().toISOString() }])
     } finally {
-      setProcesando(false)
+      setEnviando(false)
     }
+  }
+
+  const handleReiniciar = () => {
+    setConversationId(uuid())
+    setMensajes([SALUDO_INICIAL])
+    setFase('inicio')
+    setTicketId(null)
+    setOrdenId('')
   }
 
   return (
@@ -50,99 +74,73 @@ export default function CustomerSupportPage() {
         Centro de Soporte y Reclamos
       </h1>
       <p className={styles.subtitle}>
-        Nuestro **ResolutionAgent** evalúa la severidad de tu problema usando el patrón ReAct y propone una solución inmediata.
+        Chatea con nuestro <strong>ResolutionAgent</strong>: entiende el contexto de tu reclamo, verifica tu pedido y te ofrece una solución real, no una respuesta genérica.
       </p>
 
-      <div className={styles.grid}>
-        {/* Formulario */}
-        <Card className={styles.card}>
-          <form onSubmit={handleSubmit} className={styles.form}>
-            <div className={styles.formGroup}>
-              <label>ID de Usuario</label>
-              <Input value={usuarioId} onChange={(e) => setUsuarioId(e.target.value)} required />
-            </div>
-
-            <div className={styles.formGroup}>
-              <label>ID de Orden (Opcional)</label>
-              <select value={ordenId} onChange={(e) => setOrdenId(e.target.value)} className={styles.select}>
-                <option value="">-- No relacionar con orden --</option>
+      <Card className={styles.chatCard}>
+        <div className={styles.chatHeader}>
+          <div className={styles.chatHeaderInfo}>
+            <label>
+              Tu usuario
+              <input className={styles.userIdInput} value={usuarioId} onChange={(e) => setUsuarioId(e.target.value)} disabled={mensajes.length > 1} />
+            </label>
+            <label>
+              Orden (opcional, si ya la tienes a mano)
+              <select className={styles.userIdInput} value={ordenId} onChange={(e) => setOrdenId(e.target.value)} disabled={mensajes.length > 1}>
+                <option value="">-- El agente te la pedirá --</option>
                 {ordersStore.map((o) => (
-                  <option key={o.ordenId} value={o.ordenId}>
-                    {o.ordenId} (S/{o.total})
-                  </option>
+                  <option key={o.ordenId} value={o.ordenId}>{o.ordenId} (S/{o.total})</option>
                 ))}
               </select>
+            </label>
+          </div>
+
+          {fase === 'escalado_humano' && (
+            <span className={`${styles.faseBadge} ${styles.faseBadgeHitl}`}>
+              <ShieldAlert size={14} /> Derivado a soporte humano
+            </span>
+          )}
+          {fase === 'cerrado' && (
+            <span className={`${styles.faseBadge} ${styles.faseBadgeCerrado}`}>
+              <CheckCircle size={14} /> Caso resuelto {ticketId && `· ${ticketId}`}
+            </span>
+          )}
+
+          <Button size="sm" variant="outline" onClick={handleReiniciar} title="Iniciar una conversación nueva">
+            <RotateCcw size={14} /> Nueva conversación
+          </Button>
+        </div>
+
+        <div className={styles.chatBody} ref={scrollRef}>
+          {mensajes.map((m, i) => (
+            <div key={i} className={`${styles.bubbleRow} ${m.role === 'usuario' ? styles.bubbleRowUser : ''}`}>
+              <div className={`${styles.bubble} ${m.role === 'usuario' ? styles.bubbleUser : styles.bubbleAgente}`}>
+                {m.content}
+              </div>
             </div>
-
-            <div className={styles.formGroup}>
-              <label>Detalle de tu Queja / Reclamo</label>
-              <textarea
-                className={styles.textarea}
-                placeholder="Ejemplo: Recibí el calzado PROD-001 pero tiene la suela rota / Mi pedido ORD-12345 no ha llegado y pagué con tarjeta..."
-                value={textoQueja}
-                onChange={(e) => setTextoQueja(e.target.value)}
-                required
-              />
-            </div>
-
-            <Button type="submit" variant="primary" loading={procesando} className={styles.submitBtn}>
-              Enviar Reclamo a la IA
-            </Button>
-          </form>
-        </Card>
-
-        {/* Resultado del Agente */}
-        <Card className={`${styles.card} ${styles.resultCard}`}>
-          <h2>Resultado del Agente de IA</h2>
-          {ultimoTicket ? (
-            <div className={styles.resultDetails}>
-              <div className={styles.badgeRow}>
-                <span className={`${styles.badge} ${styles['badge-' + ultimoTicket.severidad]}`}>
-                  Severidad: {ultimoTicket.severidad.toUpperCase()}
-                </span>
-                {ultimoTicket.needsHumanReview ? (
-                  <span className={`${styles.badge} ${styles.badgeHitl}`}>
-                    <ShieldAlert size={14} /> HITL: Pendiente de Aprobación Manual
-                  </span>
-                ) : (
-                  <span className={`${styles.badge} ${styles.badgeAuto}`}>
-                    <CheckCircle size={14} /> Resuelto Autónomamente
-                  </span>
-                )}
+          ))}
+          {enviando && (
+            <div className={styles.bubbleRow}>
+              <div className={`${styles.bubble} ${styles.bubbleAgente} ${styles.bubbleTyping}`}>
+                <span className={styles.typingDot} /><span className={styles.typingDot} /><span className={styles.typingDot} />
               </div>
-
-              <div className={styles.resultItem}>
-                <h3>Ticket Generado:</h3>
-                <span className={styles.code}>{ultimoTicket.ticketId}</span>
-              </div>
-
-              <div className={styles.resultItem}>
-                <h3>Razonamiento ReAct (Thought → Action → Observation):</h3>
-                <pre className={styles.pre}>{ultimoTicket.razonamientoReAct}</pre>
-              </div>
-
-              <div className={styles.resultItem}>
-                <h3>Propuesta de Resolución de la IA:</h3>
-                <p className={styles.proposalText}>"{ultimoTicket.resolucionPropuesta}"</p>
-              </div>
-
-              {ultimoTicket.needsHumanReview && (
-                <div className={styles.alertBox}>
-                  <AlertCircle size={18} />
-                  <span>
-                    Debido a la severidad o criticidad del caso (Confianza: {Math.round(ultimoTicket.confianza * 100)}%), este ticket se ha pausado y enviado al panel de soporte para aprobación humana antes de liquidarse.
-                  </span>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className={styles.emptyResult}>
-              <Clock size={40} />
-              <p>Envía tu queja para ver el flujo de razonamiento ReAct del ResolutionAgent aquí.</p>
             </div>
           )}
-        </Card>
-      </div>
+        </div>
+
+        <form onSubmit={handleEnviar} className={styles.chatInputRow}>
+          <input
+            className={styles.chatInput}
+            value={texto}
+            onChange={(e) => setTexto(e.target.value)}
+            placeholder={cerrado ? 'La conversación terminó — puedes escribir para abrir un caso nuevo' : 'Escribe tu mensaje...'}
+            disabled={enviando}
+          />
+          <Button type="submit" variant="primary" loading={enviando} disabled={!texto.trim()}>
+            <Send size={16} />
+          </Button>
+        </form>
+      </Card>
     </div>
   )
 }

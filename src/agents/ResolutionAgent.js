@@ -163,6 +163,21 @@ Compensación EXACTA a comunicar (no cambies el tipo ni el monto): ${compensacio
     return this._ticketsStore
   }
 
+  /**
+   * registrarTicketChat — usado por resolutionChatGraph.js (chat conversacional
+   * multi-turno) para persistir un ticket ya resuelto o escalado, con el mismo
+   * store/eventos que _procesarReclamo — así el panel de vendedor y el Monitor
+   * SMA funcionan igual sin importar si el ticket vino del chat o del flujo
+   * de un solo turno.
+   */
+  registrarTicketChat(ticket, correlationId) {
+    this._ticketsStore.push(ticket)
+    sharedMemory.set(MEMORY_KEYS.TICKET, ticket, this.name)
+    sharedMemory.set(MEMORY_KEYS.TICKETS_STORE, [...this._ticketsStore], this.name)
+    eventBus.publish(EVENT_TYPES.TICKET_PROCESSED, ticket, this.name, correlationId)
+    eventBus.publish(EVENT_TYPES.AGENT_RESULT, { agente: this.name, resultado: ticket, exito: true }, this.name, correlationId)
+  }
+
   resolverTicketManualmente(ticketId, resolucionAprobada, estadoFinal = 'resuelto_humano') {
     const ticket = this._ticketsStore.find((t) => t.ticketId === ticketId)
     if (!ticket) return { exito: false, error: 'Ticket no encontrado' }
