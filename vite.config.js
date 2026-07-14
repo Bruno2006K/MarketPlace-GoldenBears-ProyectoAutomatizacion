@@ -50,13 +50,15 @@ function serverlessDevPlugin() {
 
       montar('/api/llm', () => import('./api/llm.js'))
       montar('/api/notify', () => import('./api/notify.js'))
+      montar('/api/trace', () => import('./api/trace.js'))
+      montar('/api/embed', () => import('./api/embed.js'))
     },
   }
 }
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  for (const k of ['ANTHROPIC_API_KEY', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'SELLER_EMAIL']) {
+  for (const k of ['GROQ_API_KEY', 'GEMINI_API_KEY', 'GMAIL_USER', 'GMAIL_APP_PASSWORD', 'SELLER_EMAIL', 'LANGSMITH_TRACING', 'LANGSMITH_API_KEY', 'LANGSMITH_PROJECT', 'SUPABASE_JWT_SECRET']) {
     if (env[k] && !process.env[k]) process.env[k] = env[k]
   }
 

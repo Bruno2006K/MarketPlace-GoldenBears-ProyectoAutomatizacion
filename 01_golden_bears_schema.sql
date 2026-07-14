@@ -7,6 +7,7 @@
 
 -- ── Extensiones ─────────────────────────────────────────────────────────
 create extension if not exists "pgcrypto";
+create extension if not exists "vector";
 
 -- ── Catálogo de productos ───────────────────────────────────────────────
 create table if not exists productos (
@@ -20,12 +21,43 @@ create table if not exists productos (
   descripcion   text,
   imagen        text,
   tags          text[] default '{}',
+  embedding     vector(768),                        -- Gemini gemini-embedding-001 (RAG, ver SearchAgent.js)
   creado_en     timestamptz not null default now(),
   actualizado_en timestamptz not null default now()
 );
 
 create index if not exists idx_productos_categoria on productos (categoria);
 create index if not exists idx_productos_marca on productos (marca);
+create index if not exists idx_productos_embedding
+  on productos using ivfflat (embedding vector_cosine_ops) with (lists = 100);
+
+-- match_productos — búsqueda semántica (RAG) por similitud de coseno, con
+-- filtros opcionales de categoría y precio máximo (ver guia_automatizacion.md,
+-- sección 5.2: "Búsqueda Vectorial (RAG)" del ConciergeAgent/SearchAgent).
+create or replace function match_productos(
+  query_embedding vector(768),
+  match_count int default 12,
+  filtro_categoria text default null,
+  precio_max numeric default null
+)
+returns table (
+  id text, nombre text, categoria text, marca text, precio numeric,
+  stock integer, rating numeric, descripcion text, imagen text, tags text[],
+  similitud float
+)
+language sql stable
+as $$
+  select
+    p.id, p.nombre, p.categoria, p.marca, p.precio, p.stock, p.rating,
+    p.descripcion, p.imagen, p.tags,
+    1 - (p.embedding <=> query_embedding) as similitud
+  from productos p
+  where p.embedding is not null
+    and (filtro_categoria is null or p.categoria ilike filtro_categoria)
+    and (precio_max is null or p.precio <= precio_max)
+  order by p.embedding <=> query_embedding
+  limit match_count;
+$$;
 
 -- ── Usuarios (compradores demo) ─────────────────────────────────────────
 create table if not exists usuarios (

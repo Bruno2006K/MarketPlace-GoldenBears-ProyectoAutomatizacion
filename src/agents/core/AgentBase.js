@@ -11,12 +11,21 @@
  *   - metrics: latencia, tasa de éxito, tokens estimados
  *
  * Ciclo: input → validate → execute tool → log → publish event → return result
+ *
+ * Optimización de tokens (guia_automatizacion.md, sección 7 — "Prompt
+ * Summarization"): cada 5 entradas del historial, se compacta a un resumen
+ * consolidado + las últimas 3 entradas completas, evitando que el contexto
+ * crezca sin límite en llamadas futuras al LLM.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
 import { eventBus } from './EventBus.js'
 import { sharedMemory } from './SharedMemory.js'
 import { EVENT_TYPES } from './EventBus.js'
+import { complete, MODELOS } from './llmClient.js'
+
+const COMPACT_EVERY = 5
+const KEEP_RECENT = 3
 
 export class AgentBase {
   constructor(name, systemPrompt, capabilities = []) {
@@ -98,6 +107,43 @@ export class AgentBase {
     } catch { /* localStorage puede no estar disponible (SSR/tests) */ }
 
     if (this._conversationHistory.length > 100) this._conversationHistory.shift()
+
+    // Fire-and-forget: no bloquea el flujo del agente ni sus tests.
+    this._compactHistoryIfNeeded().catch(() => { /* la compactación es best-effort */ })
+  }
+
+  /** _compactHistoryIfNeeded — resume el historial cada COMPACT_EVERY entradas. */
+  async _compactHistoryIfNeeded() {
+    if (this._compacting) return
+    if (this._conversationHistory.length < COMPACT_EVERY) return
+    if (this._conversationHistory.length % COMPACT_EVERY !== 0) return
+
+    const antiguos = this._conversationHistory.slice(0, -KEEP_RECENT)
+    const recientes = this._conversationHistory.slice(-KEEP_RECENT)
+    if (antiguos.length < 2 || antiguos.some((e) => e.esResumen)) return
+
+    this._compacting = true
+    try {
+      const resumen = await complete({
+        system: 'Resume en máximo 2 frases técnicas el siguiente historial de acciones de un agente del sistema multiagente Golden Bears.',
+        prompt: antiguos.map((e) => `[${e.role}] ${e.content}`).join('\n'),
+        model: MODELOS.GROQ_LLAMA,
+        agente: this.name,
+        mockFallback: () => `Resumen de ${antiguos.length} acciones previas de ${this.name}.`,
+      })
+
+      const resumenEntry = {
+        role: 'system', content: 'Resumen consolidado', data: { resumen, mensajesCompactados: antiguos.length },
+        timestamp: new Date().toISOString(), agentName: this.name, esResumen: true,
+      }
+      this._conversationHistory = [resumenEntry, ...recientes]
+
+      try {
+        localStorage.setItem(`agent_history_${this.name}`, JSON.stringify(this._conversationHistory))
+      } catch { /* localStorage puede no estar disponible (SSR/tests) */ }
+    } finally {
+      this._compacting = false
+    }
   }
 
   _loadHistoryFromStorage() {

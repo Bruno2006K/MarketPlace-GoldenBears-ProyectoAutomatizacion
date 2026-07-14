@@ -36,6 +36,10 @@ export const MEMORY_KEYS = {
   LAST_NOTIFICATION:  'notificaciones_ultima',
   NOTIFICATIONS_TOTAL: 'notificaciones_total',
 
+  // Soporte / Tickets
+  TICKET:             'ticket',
+  TICKETS_STORE:      'reclamos_soporte',
+
   // Métricas del sistema
   AGENT_METRICS:      'agent_metrics',
 }
@@ -46,6 +50,7 @@ export const AGENT_PRIORITY = {
   OrderAgent:          8,
   CartPaymentAgent:    7,
   InventoryAgent:      6,
+  ResolutionAgent:     5,
   SearchAgent:         3,
   NotificationAgent:   2,
 }
@@ -57,6 +62,7 @@ export const AGENT_PERMISSIONS = {
   OrderAgent:          { write: ['pedido', 'ordenes_vendedor'], read: ['pedido', 'ordenes_vendedor', 'pago'] },
   InventoryAgent:      { write: ['inventario_stock', 'inventario_alertas'], read: ['inventario_stock', 'inventario_alertas', 'pedido'] },
   NotificationAgent:   { write: ['notificaciones_ultima', 'notificaciones_total'], read: ['pedido', 'inventario_alertas'] },
+  ResolutionAgent:     { write: ['ticket', 'reclamos_soporte'], read: ['ticket', 'reclamos_soporte', 'ordenes_vendedor'] },
 }
 
 class SharedMemoryClass {

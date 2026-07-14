@@ -6,6 +6,8 @@ import CheckoutPage from './features/checkout/CheckoutPage.jsx'
 import SellerDashboardPage from './features/seller/SellerDashboardPage.jsx'
 import SellerOrdersPage from './features/seller/SellerOrdersPage.jsx'
 import SellerInventoryPage from './features/seller/SellerInventoryPage.jsx'
+import SellerTicketsPage from './features/seller/SellerTicketsPage.jsx'
+import CustomerSupportPage from './features/support/CustomerSupportPage.jsx'
 import SwarmMonitorPage from './features/monitor/SwarmMonitorPage.jsx'
 import NotFoundPage from './pages/NotFoundPage.jsx'
 
@@ -16,9 +18,11 @@ export default function App() {
         <Route path="/" element={<CatalogPage />} />
         <Route path="/carrito" element={<CartPage />} />
         <Route path="/checkout" element={<CheckoutPage />} />
+        <Route path="/soporte" element={<CustomerSupportPage />} />
         <Route path="/vendedor" element={<SellerDashboardPage />} />
         <Route path="/vendedor/pedidos" element={<SellerOrdersPage />} />
         <Route path="/vendedor/inventario" element={<SellerInventoryPage />} />
+        <Route path="/vendedor/tickets" element={<SellerTicketsPage />} />
         <Route path="/monitor" element={<SwarmMonitorPage />} />
         <Route path="*" element={<NotFoundPage />} />
       </Route>

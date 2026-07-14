@@ -91,6 +91,8 @@ class InventoryAgentClass extends AgentBase {
         if (alertasStock.length) msg += ` ${alertasStock.length} alerta(s) de stock bajo generadas.`
         return msg
       },
+      agente: this.name,
+      correlationId,
     })
 
     const resultPayload = { ordenId, itemsActualizados, exito, conflictos, alertasStock, analisisIA: analisis }

@@ -1,5 +1,5 @@
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { ShoppingCart, Store, Activity } from 'lucide-react'
+import { ShoppingCart, Store, Activity, LifeBuoy } from 'lucide-react'
 import { useCart } from '../../context/CartContext.jsx'
 import styles from './AppLayout.module.css'
 
@@ -17,6 +17,9 @@ export default function AppLayout() {
 
           <nav className={styles.nav}>
             <NavLink to="/" end className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>Tienda</NavLink>
+            <NavLink to="/soporte" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
+              <LifeBuoy size={15} /> Soporte
+            </NavLink>
             <NavLink to="/vendedor" className={({ isActive }) => (isActive ? styles.navActive : styles.navLink)}>
               <Store size={15} /> Vendedor
             </NavLink>

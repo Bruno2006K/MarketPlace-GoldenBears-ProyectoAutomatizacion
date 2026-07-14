@@ -13,6 +13,7 @@ import { AgentBase } from './core/AgentBase.js'
 import { eventBus, EVENT_TYPES } from './core/EventBus.js'
 import { sharedMemory, MEMORY_KEYS } from './core/SharedMemory.js'
 import { complete } from './core/llmClient.js'
+import { apiHeaders } from './core/apiHeaders.js'
 import { formatSoles } from '../domain/pricing.js'
 import { uuid } from './core/uuid.js'
 import { buildBuyerEmailHtml, buildSellerEmailHtml, buildStockAlertEmailHtml } from '../domain/emailTemplates.js'
@@ -39,6 +40,8 @@ class NotificationAgentClass extends AgentBase {
       system: this.systemPrompt,
       prompt: `Genera un WhatsApp de confirmación de pedido ${ordenId} por ${formatSoles(total)}. Máx 160 caracteres.`,
       mockFallback: () => `Tu pedido #${ordenId} fue CONFIRMADO por ${formatSoles(total)}. Llegará el ${fechaEntregaEstimada}. Gracias por comprar en Golden Bears.`,
+      agente: this.name,
+      correlationId,
     })
 
     const waCliente = `Tu pedido #${ordenId} fue CONFIRMADO por ${formatSoles(total)}. Llegará el ${fechaEntregaEstimada}. Gracias por comprar en Golden Bears.`
@@ -103,7 +106,7 @@ class NotificationAgentClass extends AgentBase {
     try {
       const res = await fetch('/api/notify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: apiHeaders(),
         body: JSON.stringify({ to, subject, html }),
       })
       const body = await res.json().catch(() => ({}))

@@ -72,6 +72,8 @@ class CartPaymentAgentClass extends AgentBase {
       mockFallback: () => (total > 5000
         ? 'RECHAZADO — monto inusualmente alto. Se requiere verificación adicional.'
         : 'APROBADO — transacción dentro de parámetros normales.'),
+      agente: this.name,
+      correlationId,
     })
 
     await sleep(300)

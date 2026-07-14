@@ -14,7 +14,7 @@ navegador, sin necesidad de un servidor Python.
 
 | Pieza | Origen (Python) | Destino (JS) |
 |---|---|---|
-| Motor de agentes | `core/antigravity.py` (`AntigravityAgent`, `AgentGraph`, `SwarmOrchestrator`) | `src/agents/core/AgentBase.js` + `AgentOrchestrator.js` |
+| Motor de agentes | `core/antigravity.py` (`AntigravityAgent`, `AgentGraph`, `SwarmOrchestrator`) | `src/agents/core/AgentBase.js` + `AgentOrchestrator.js` + **LangGraph.js real** (`src/agents/core/graphs/`) |
 | Bus de eventos + JSON Schema | `core/schemas.py` + `core/event_bus.py` | `src/agents/core/EventBus.js` |
 | Estado compartido + conflictos | `core/shared_state.py` (`AGENT_PRIORITY`) | `src/agents/core/SharedMemory.js` (`AGENT_PRIORITY`, `AGENT_PERMISSIONS`) |
 | Agente Búsqueda + IA | `agents/busqueda_ia.py` | `src/agents/SearchAgent.js` |
@@ -24,28 +24,33 @@ navegador, sin necesidad de un servidor Python.
 | Agente Notificaciones | `agents/notificaciones.py` (smtplib) | `src/agents/NotificationAgent.js` + `api/notify.js` (nodemailer) |
 | Agente Orquestador | `agents/orchestrator.py` | Absorbido en `AgentOrchestrator.js` (topología híbrida estrella+cadena) |
 | Catálogo mock | `data/mock_data.py` | `src/data/seeds/productsSeed.js` / `usersSeed.js` |
-| API REST + WebSocket | `api/main.py` (FastAPI) | Reemplazado por llamadas directas a los agentes desde React (sin backend propio) + `api/llm.js` y `api/notify.js` como únicos endpoints serverless (proxy de IA y email) |
-| Persistencia | En memoria (`orders_store`, `dict` de stock) | Supabase (`01_golden_bears_schema.sql`) con fallback automático a datos locales |
+| API REST + WebSocket | `api/main.py` (FastAPI) | Reemplazado por llamadas directas a los agentes desde React (sin backend propio) + `api/llm.js`, `api/notify.js`, `api/trace.js` y `api/embed.js` como endpoints serverless (proxy de IA, email, observabilidad LangSmith y embeddings) |
+| Persistencia | En memoria (`orders_store`, `dict` de stock) | Supabase (`01_golden_bears_schema.sql`, con pgvector) con fallback automático a datos locales |
 
-**Lo que NO se migró tal cual** (simplificado a propósito, ver comentarios en el código):
-- El soporte multi-proveedor de LLM de Pardos (Gemini/Groq/LangChain/LangSmith) se
-  redujo a un solo proveedor (**Anthropic Claude Haiku**, igual que el Python
-  original) detrás de un proxy serverless — misma filosofía de seguridad, menos
-  complejidad innecesaria para este dominio.
+Implementado 1:1 según `guia_automatizacion.md`:
+- **LangGraph.js real** (`@langchain/langgraph`) orquesta el checkout (`checkoutGraph.js`: pago → pedido → swarm paralelo real vía fan-out) y la resolución de reclamos (`resolutionGraph.js`: `interrupt()`/`Command({resume})` para HITL real, con checkpointer `MemorySaver` por `correlationId`).
+- **RAG / pgvector**: `SearchAgent.js` traduce la consulta a embedding (`api/embed.js` → Gemini `gemini-embedding-001`) y busca por similitud de coseno vía la función SQL `match_productos`; si Supabase/embeddings no están disponibles, cae automáticamente a búsqueda por texto.
+- **LangSmith**: `api/trace.js` registra cada llamada real a Groq/Gemini y las alertas HITL del `ResolutionAgent`.
+- **JWT**: `api/_guard.js` verifica (HS256, sin dependencias externas) el anon key de Supabase como Bearer token cuando `SUPABASE_JWT_SECRET` está configurado.
+- **Prompt summarization**: `AgentBase.js` compacta el historial de cada agente cada 5 mensajes a un resumen + los últimos 3.
+- Notificaciones: se mantiene **Nodemailer + Gmail SMTP** (`api/notify.js`) en vez de Resend/Twilio — funciona bien y es consistente con el backend Python original (`smtplib`).
 
 ---
 
 ## Arquitectura
 
 ```
-CLIENTE (React) → AgentOrchestrator → EVENT BUS (MCP, JSON Schema) → AGENTES → Supabase / Gmail / Claude
+CLIENTE (React) → AgentOrchestrator → LangGraph.js (checkoutGraph / resolutionGraph)
+                          │                    │
+                          ▼                    ▼
+                   EVENT BUS (MCP, JSON Schema) → AGENTES → Supabase(+pgvector) / Gmail / Groq / Gemini / LangSmith
                           ↑                    PUBLISH                  ↓
                           └──────────────────── REPLY ←──────────────────┘
 
      SharedMemory (versionado + resolución de conflictos por prioridad)
 ```
 
-**Topología:** Híbrida (Estrella + Cadena) — igual que el backend Python original.
+**Topología:** Híbrida (Estrella + Cadena) — igual que el backend Python original, ahora ejecutada sobre StateGraphs reales de LangGraph.js.
 
 ### Flujo de compra (con tramo paralelo / SWARM)
 
@@ -77,7 +82,7 @@ npm install
 
 # 2. Configurar variables de entorno
 cp .env.example .env
-# Edita .env con tus credenciales de Supabase (opcional) y Anthropic (opcional)
+# Edita .env con tus credenciales de Supabase (opcional) y Groq/Gemini (opcional)
 
 # 3. (Opcional) Crear el schema en Supabase
 #    Copia y ejecuta 01_golden_bears_schema.sql en el SQL Editor de tu proyecto Supabase
@@ -96,11 +101,20 @@ Abre `http://localhost:5173`.
 | Modo | Configuración | Comportamiento |
 |---|---|---|
 | **demo** (default) | `VITE_USE_PROXY=false` | Agentes usan heurística mock (razonamiento simulado, sin costo) |
-| **producción** | `VITE_USE_PROXY=true` + `ANTHROPIC_API_KEY` en el servidor | Los agentes llaman a Claude Haiku vía `/api/llm` |
+| **producción** | `VITE_USE_PROXY=true` + `GROQ_API_KEY` / `GEMINI_API_KEY` en el servidor | Los agentes llaman a Groq Llama 3.1 8B o Gemini 1.5 Flash vía `/api/llm` |
 
 Sin Supabase configurado, el catálogo se sirve desde `productsSeed.js` — el
 sistema es 100% funcional sin infraestructura externa, igual que el backend
 Python original con `mock_data.py`.
+
+### Observabilidad con LangSmith (opcional)
+
+Con `LANGSMITH_TRACING=true` + `LANGSMITH_API_KEY` en el servidor, `/api/trace`
+registra en LangSmith cada llamada real a Groq/Gemini (`llmClient.complete`) y
+las alertas Human-in-the-loop del `ResolutionAgent` cuando la confianza de una
+resolución autónoma es menor a 0.8. Sin esas variables, `/api/trace` responde
+`{ disabled: true }` sin error: la observabilidad nunca bloquea el flujo
+transaccional de los agentes.
 
 ---
 
@@ -132,7 +146,9 @@ verificando que el swarm (Inventario + Notificaciones) comparte `correlationId`.
 ## Despliegue en Vercel
 
 El proyecto incluye `vercel.json` con los mismos headers de seguridad y
-rewrites que Pardos Chicken. `api/llm.js` y `api/notify.js` se despliegan
-automáticamente como funciones serverless. Recuerda configurar en Vercel:
-`ANTHROPIC_API_KEY`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`, `SELLER_EMAIL`,
-`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+rewrites que Pardos Chicken. `api/llm.js`, `api/notify.js`, `api/trace.js` y
+`api/embed.js` se despliegan automáticamente como funciones serverless.
+Recuerda configurar en Vercel: `GROQ_API_KEY`, `GEMINI_API_KEY`, `GMAIL_USER`,
+`GMAIL_APP_PASSWORD`, `SELLER_EMAIL`, `VITE_SUPABASE_URL`,
+`VITE_SUPABASE_ANON_KEY` y, opcionalmente, `SUPABASE_JWT_SECRET`,
+`LANGSMITH_TRACING`, `LANGSMITH_API_KEY`, `LANGSMITH_PROJECT`.

@@ -48,6 +48,8 @@ class OrderAgentClass extends AgentBase {
       system: this.systemPrompt,
       prompt: `Orden creada: ${ordenId}. Total: S/${total}. Items: ${items.length}. Genera mensaje de confirmación para el cliente en 1 oración.`,
       mockFallback: () => `¡Tu pedido ${ordenId} ha sido confirmado! Recibirás ${formatSoles(total)} en tu comprobante. Entrega en 3 días hábiles.`,
+      agente: this.name,
+      correlationId,
     })
 
     const resultPayload = {

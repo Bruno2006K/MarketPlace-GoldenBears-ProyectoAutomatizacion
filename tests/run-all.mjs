@@ -8,6 +8,7 @@ import { run as runSharedMemory } from './shared-memory-conflictos.test.mjs'
 import { run as runCarritoIGV } from './carrito-pago-igv.test.mjs'
 import { run as runInventario } from './inventario-concurrencia.test.mjs'
 import { run as runCheckoutSwarm } from './checkout-swarm.test.mjs'
+import { run as runResolution } from './resolution-soporte.test.mjs'
 
 const tests = [
   ['EventBus (validación de schema MCP)', runEventBus],
@@ -15,6 +16,7 @@ const tests = [
   ['Carrito y Pago (IGV y reglas de negocio)', runCarritoIGV],
   ['Inventario (stock y alertas)', runInventario],
   ['Checkout end-to-end (swarm paralelo)', runCheckoutSwarm],
+  ['Soporte y HITL (ResolutionAgent)', runResolution],
 ]
 
 let fallidos = 0

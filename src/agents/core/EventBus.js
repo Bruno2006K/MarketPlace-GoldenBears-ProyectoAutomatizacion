@@ -46,6 +46,10 @@ export const EVENT_TYPES = {
   // Notificaciones
   NOTIFICATION_SENT: 'notificacion.enviada',
 
+  // Soporte y Reclamos (ResolutionAgent)
+  TICKET_CREATED:   'reclamo.creado',
+  TICKET_PROCESSED: 'reclamo.procesado',
+
   // Sistema / orquestación
   AGENT_RESULT:      'resultado.agente',
   AGENT_STARTED:      'system:agent_started',
@@ -73,6 +77,8 @@ const EVENT_PAYLOAD_SCHEMAS = {
   'pedido.despachado':      { required: ['ordenId', 'numeroGuia'] },
   'inventario.actualizado': { required: ['itemsActualizados', 'exito'] },
   'notificacion.enviada':   { required: ['usuarioId', 'canales', 'exito'] },
+  'reclamo.creado':         { required: ['ticketId', 'usuarioId', 'textoQueja'] },
+  'reclamo.procesado':      { required: ['ticketId', 'severidad', 'resolucionPropuesta', 'needsHumanReview'] },
   'resultado.agente':       { required: ['agente', 'resultado', 'exito'] },
   'system:agent_started':   { required: ['agentName', 'tool'] },
   'system:agent_completed': { required: ['agentName', 'tool', 'latency', 'success'] },

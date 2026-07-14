@@ -1,0 +1,293 @@
+.title {
+  font-size: 2rem;
+  color: var(--color-gold);
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.subtitle {
+  color: var(--color-text-muted);
+  margin-bottom: 2rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+@media (max-width: 768px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.listCol {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 0.5rem;
+}
+
+.sectionHeader h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.alertIcon {
+  color: #ef4444;
+}
+
+.checkIcon {
+  color: #10b981;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 350px;
+  overflow-y: auto;
+}
+
+.empty {
+  font-size: 0.9rem;
+  color: var(--color-text-muted);
+  padding: 1rem;
+  background-color: var(--color-bg-darker);
+  border: 1px dashed var(--color-border);
+  border-radius: 4px;
+}
+
+.ticketItem {
+  background-color: var(--color-bg-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  padding: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ticketItem:hover {
+  border-color: var(--color-gold);
+  transform: translateY(-1px);
+}
+
+.ticketActive {
+  border-color: var(--color-gold);
+  background-color: rgba(201, 168, 76, 0.05);
+}
+
+.itemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.itemCode {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: var(--color-gold);
+}
+
+.itemBadge {
+  transform: scale(0.85);
+  transform-origin: right center;
+}
+
+.itemText {
+  font-size: 0.85rem;
+  color: var(--color-text);
+  margin: 0 0 0.5rem 0;
+}
+
+.itemFooter {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+}
+
+.itemStatus {
+  font-weight: 600;
+}
+
+.detailCol {
+  position: sticky;
+  top: 20px;
+  height: fit-content;
+}
+
+.detailCard {
+  border: 1px solid var(--color-border);
+}
+
+.detailHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.ticketId {
+  font-family: monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-gold);
+}
+
+.badge {
+  padding: 0.35rem 0.65rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.badge-alta {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.badge-media {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.badge-baja {
+  background-color: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.metaRow {
+  display: flex;
+  gap: 1.5rem;
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 1rem;
+  margin-bottom: 1rem;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.quejaSection, .resolucionSection {
+  margin-bottom: 1.5rem;
+}
+
+.quejaSection h3, .resolucionSection h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  margin-bottom: 0.5rem;
+}
+
+.blockquote {
+  margin: 0;
+  padding: 0.75rem;
+  background-color: var(--color-bg-darker);
+  border-left: 3px solid #ef4444;
+  border-radius: 0 4px 4px 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  font-style: italic;
+}
+
+.resolucionTitleRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.resolucionText {
+  font-size: 1rem;
+  line-height: 1.5;
+  background-color: var(--color-bg-darker);
+  padding: 0.75rem;
+  border-left: 3px solid var(--color-gold);
+  border-radius: 0 4px 4px 0;
+}
+
+.editArea {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 0.75rem;
+  background-color: var(--color-bg-darker);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  resize: vertical;
+  outline: none;
+}
+
+.textarea:focus {
+  border-color: var(--color-gold);
+}
+
+.editActions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.actionRow {
+  display: flex;
+  gap: 0.5rem;
+  border-top: 1px solid var(--color-border);
+  padding-top: 1.25rem;
+  margin-top: 1rem;
+}
+
+.statusBox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  padding: 0.75rem;
+  border-radius: 4px;
+  color: #a7f3d0;
+  font-size: 0.9rem;
+}
+
+.statusBox svg {
+  color: #10b981;
+}
+
+.emptyDetail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 5rem 1rem;
+  color: var(--color-text-muted);
+  gap: 1rem;
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+}

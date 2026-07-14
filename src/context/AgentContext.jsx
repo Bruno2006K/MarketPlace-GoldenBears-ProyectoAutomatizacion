@@ -57,10 +57,25 @@ export function AgentProvider({ children }) {
     return () => { unsub1(); unsub2() }
   }, [])
 
+  const [ticketsStore, setTicketsStore] = useState(() => orchestrator.getTicketsStore())
+
+  // Refresca el listado de tickets cuando se procesa o resuelve uno.
+  useEffect(() => {
+    const unsub1 = eventBus.subscribe('reclamo.creado', () => setTicketsStore(orchestrator.getTicketsStore()))
+    const unsub2 = eventBus.subscribe('reclamo.procesado', () => setTicketsStore(orchestrator.getTicketsStore()))
+    return () => { unsub1(); unsub2() }
+  }, [])
+
   const buscarProductos = useCallback((query, filtros = {}) => orchestrator.iniciarBusqueda({ query, filtros }), [])
   const validarCarrito = useCallback((usuarioId, items) => orchestrator.actualizarCarrito({ usuarioId, items }), [])
   const procesarCheckout = useCallback((params) => orchestrator.procesarCheckout(params), [])
   const despacharPedido = useCallback((ordenId, guia) => orchestrator.despacharPedido(ordenId, guia), [])
+  const procesarReclamo = useCallback((params) => orchestrator.procesarReclamo(params), [])
+  const resolverTicketManualmente = useCallback((ticketId, resolucion) => {
+    const res = orchestrator.resolverTicketManualmente(ticketId, resolucion)
+    setTicketsStore(orchestrator.getTicketsStore())
+    return res
+  }, [])
 
   const value = {
     orchestrator,
@@ -68,10 +83,13 @@ export function AgentProvider({ children }) {
     eventLog,
     ordersStore,
     stockAlerts,
+    ticketsStore,
     buscarProductos,
     validarCarrito,
     procesarCheckout,
     despacharPedido,
+    procesarReclamo,
+    resolverTicketManualmente,
     refreshStatus: () => setSystemStatus(orchestrator.getSystemStatus()),
   }
 

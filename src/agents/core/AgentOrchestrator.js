@@ -22,13 +22,17 @@
  * pertenecen a la misma compra.
  * ─────────────────────────────────────────────────────────────────────────────
  */
+import { Command } from '@langchain/langgraph'
 import { searchAgent } from '../SearchAgent.js'
 import { cartPaymentAgent } from '../CartPaymentAgent.js'
 import { orderAgent } from '../OrderAgent.js'
 import { inventoryAgent } from '../InventoryAgent.js'
 import { notificationAgent } from '../NotificationAgent.js'
+import { resolutionAgent } from '../ResolutionAgent.js'
 import { eventBus, EVENT_TYPES } from './EventBus.js'
 import { sharedMemory, MEMORY_KEYS } from './SharedMemory.js'
+import { checkoutGraph } from './graphs/checkoutGraph.js'
+import { resolutionGraph } from './graphs/resolutionGraph.js'
 
 /** AgentRegistry — Service Locator para descubrir agentes en tiempo de ejecución. */
 class AgentRegistry {
@@ -53,6 +57,9 @@ class AgentOrchestratorClass {
     this.name = 'OrchestratorAgent'
     this.topology = 'hybrid-star-chain'
     this.registry = new AgentRegistry()
+    // ticketId → correlationId (thread_id del resolutionGraph), para poder
+    // reanudar la interrupción HITL desde resolverTicketManualmente().
+    this._ticketThreads = new Map()
 
     this._metrics = {
       totalOrchestrations: 0,
@@ -70,6 +77,7 @@ class AgentOrchestratorClass {
     this.registry.register(orderAgent)
     this.registry.register(inventoryAgent)
     this.registry.register(notificationAgent)
+    this.registry.register(resolutionAgent)
 
     sharedMemory.set(MEMORY_KEYS.AGENT_METRICS, {
       initialized: true, topology: this.topology, agentCount: this.registry.getAll().length, startedAt: new Date().toISOString(),
@@ -109,7 +117,10 @@ class AgentOrchestratorClass {
   // ── Flujo 3 (SWARM): Checkout completo ───────────────────────────────────
   /**
    * procesarCheckout — Orquesta el flujo completo: pago → pedido → SWARM
-   * (inventario + notificaciones en paralelo).
+   * (inventario + notificaciones en paralelo), ejecutado como un StateGraph
+   * real de LangGraph.js (checkoutGraph.js): aristas condicionales para
+   * pago/pedido fallidos, fan-out paralelo real para el swarm, checkpointer
+   * por correlationId.
    *
    * Equivalente exacto de:
    *   Python: carrito_pago._procesar_pago → pedidos.process → (inventario +
@@ -119,53 +130,29 @@ class AgentOrchestratorClass {
     this._metrics.totalOrchestrations++
     const correlationId = `flow_checkout_${Date.now()}`
 
-    // Paso 1: Pago (secuencial, es prerrequisito de todo lo demás)
-    const pagoResult = await cartPaymentAgent.execute('procesar_pago', { usuarioId, total, metodoPago, items }, correlationId)
-    const pago = pagoResult.result
+    const finalState = await checkoutGraph.invoke(
+      { usuarioId, total, items, metodoPago, correlationId },
+      { configurable: { thread_id: correlationId } },
+    )
 
-    if (!pago?.exitoso) {
-      return { exito: false, etapa: 'pago', pago, mensaje: 'El pago fue rechazado. Intenta nuevamente.', correlationId }
+    if (!finalState.exito) {
+      return { exito: false, etapa: finalState.etapa, pago: finalState.pago, mensaje: finalState.mensaje, correlationId }
     }
 
-    // Paso 2: Crear orden (secuencial, depende del pago)
-    const ordenResult = await orderAgent.execute('crear_orden', {
-      usuarioId, total: pago.total, items: pago.items || items, transaccionId: pago.transaccionId, exitoso: pago.exitoso,
-    }, correlationId)
-    const orden = ordenResult.result
-
-    if (!orden?.creado) {
-      return { exito: false, etapa: 'pedido', pago, mensaje: 'No se pudo confirmar el pedido.', correlationId }
-    }
-
-    // Paso 3 (SWARM): Inventario + Notificaciones EN PARALELO — Promise.all()
     this._metrics.swarmExecutions++
     this._metrics.parallelTasksTotal += 2
-    console.log('[Orchestrator] 🌀 SWARM: pedido.confirmado — InventoryAgent + NotificationAgent en paralelo')
-
-    const [inventarioResult, notifResult] = await Promise.all([
-      inventoryAgent.execute('actualizar_stock', { ordenId: orden.ordenId, items: orden.items }, correlationId),
-      notificationAgent.execute('notificar_pedido', {
-        ordenId: orden.ordenId, usuarioId, total: orden.total, facturaId: orden.facturaId,
-        fechaEntregaEstimada: orden.fechaEntregaEstimada, items: orden.items,
-      }, correlationId),
-    ])
-
-    // Si el inventario generó alertas de stock bajo, dispara notificación al admin
-    // (mismo evento adicional que en Python: notificaciones también escucha inventario.actualizado).
-    const alertas = inventarioResult.result?.alertasStock || []
-    if (alertas.length > 0) {
-      notificationAgent.execute('notificar_alertas_stock', { alertasStock: alertas }, correlationId)
-    }
+    console.log('[Orchestrator] 🌀 SWARM (LangGraph fan-out): pedido.confirmado — InventoryAgent + NotificationAgent en paralelo')
 
     return {
       exito: true,
       swarmType: 'checkout_completo',
       agentsInvolved: ['CartPaymentAgent', 'OrderAgent', 'InventoryAgent', 'NotificationAgent'],
       correlationId,
-      pago, pedido: orden,
-      inventario: inventarioResult.result,
-      notificaciones: notifResult.result,
-      mensaje: `Pedido #${orden.ordenId} confirmado! Factura ${orden.facturaId}.`,
+      pago: finalState.pago,
+      pedido: finalState.orden,
+      inventario: finalState.inventario,
+      notificaciones: finalState.notificaciones,
+      mensaje: finalState.mensaje,
     }
   }
 
@@ -177,6 +164,54 @@ class AgentOrchestratorClass {
   getOrdersStore() { return orderAgent.getOrdersStore() }
   getStock(productoId) { return inventoryAgent.getStock(productoId) }
   getAllStock() { return inventoryAgent.getAllStock() }
+
+  // ── Soporte y Reclamos (ResolutionAgent) ──────────────────────────────────
+  /**
+   * procesarReclamo — Ejecuta resolutionGraph.js: analiza el reclamo y, si la
+   * confianza es < 0.8, el grafo se interrumpe (interrupt() real de
+   * LangGraph.js) dejando el hilo pausado hasta resolverTicketManualmente().
+   * El ticket con su propuesta ya se persiste en el nodo "analizar", así que
+   * la interrupción no bloquea la respuesta al cliente — solo marca el hilo
+   * del grafo como pendiente de revisión humana.
+   */
+  async procesarReclamo({ usuarioId = 'USR-001', ordenId = null, textoQueja }) {
+    this._metrics.totalOrchestrations++
+    const correlationId = `flow_support_${Date.now()}`
+
+    // Publicar evento inicial de reclamo creado
+    eventBus.publish(EVENT_TYPES.TICKET_CREATED, { ticketId: `TKT_TEMP_${Date.now()}`, usuarioId, textoQueja }, this.name, correlationId)
+
+    const finalState = await resolutionGraph.invoke(
+      { usuarioId, ordenId, textoQueja, correlationId },
+      { configurable: { thread_id: correlationId } },
+    )
+
+    if (finalState.ticket?.ticketId) {
+      this._ticketThreads.set(finalState.ticket.ticketId, correlationId)
+    }
+
+    return { success: true, result: finalState.ticket, agentName: resolutionAgent.name }
+  }
+
+  /**
+   * resolverTicketManualmente — Aplica la decisión humana al ticket y, si el
+   * hilo del grafo quedó interrumpido esperando revisión, lo reanuda con
+   * `new Command({ resume })` (fire-and-forget: no bloquea la respuesta al
+   * staff, solo mantiene el checkpoint de LangGraph consistente).
+   */
+  resolverTicketManualmente(ticketId, resolucionAprobada) {
+    const res = resolutionAgent.resolverTicketManualmente(ticketId, resolucionAprobada)
+    const threadId = this._ticketThreads.get(ticketId)
+    if (res.exito && threadId) {
+      resolutionGraph
+        .invoke(new Command({ resume: resolucionAprobada }), { configurable: { thread_id: threadId } })
+        .catch((err) => console.warn('[Orchestrator] No se pudo reanudar el grafo de resolución:', err.message))
+      this._ticketThreads.delete(ticketId)
+    }
+    return res
+  }
+
+  getTicketsStore() { return resolutionAgent.getTicketsStore() }
 
   // ── Métricas y estado del sistema ─────────────────────────────────────────
   getSystemStatus() {
