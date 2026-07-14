@@ -36,6 +36,7 @@ export default function CustomerSupportPage() {
         toast.error('Error al procesar el reclamo: ' + res.error)
       }
     } catch (err) {
+      console.error('[CustomerSupportPage] procesarReclamo falló:', err)
       toast.error('Error en el sistema de soporte')
     } finally {
       setProcesando(false)

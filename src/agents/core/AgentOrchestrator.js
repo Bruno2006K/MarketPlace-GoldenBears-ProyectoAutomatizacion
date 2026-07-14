@@ -22,7 +22,6 @@
  * pertenecen a la misma compra.
  * ─────────────────────────────────────────────────────────────────────────────
  */
-import { Command } from '@langchain/langgraph'
 import { searchAgent } from '../SearchAgent.js'
 import { cartPaymentAgent } from '../CartPaymentAgent.js'
 import { orderAgent } from '../OrderAgent.js'
@@ -57,9 +56,6 @@ class AgentOrchestratorClass {
     this.name = 'OrchestratorAgent'
     this.topology = 'hybrid-star-chain'
     this.registry = new AgentRegistry()
-    // ticketId → correlationId (thread_id del resolutionGraph), para poder
-    // reanudar la interrupción HITL desde resolverTicketManualmente().
-    this._ticketThreads = new Map()
 
     this._metrics = {
       totalOrchestrations: 0,
@@ -167,12 +163,12 @@ class AgentOrchestratorClass {
 
   // ── Soporte y Reclamos (ResolutionAgent) ──────────────────────────────────
   /**
-   * procesarReclamo — Ejecuta resolutionGraph.js: analiza el reclamo y, si la
-   * confianza es < 0.8, el grafo se interrumpe (interrupt() real de
-   * LangGraph.js) dejando el hilo pausado hasta resolverTicketManualmente().
-   * El ticket con su propuesta ya se persiste en el nodo "analizar", así que
-   * la interrupción no bloquea la respuesta al cliente — solo marca el hilo
-   * del grafo como pendiente de revisión humana.
+   * procesarReclamo — Ejecuta resolutionGraph.js (StateGraph real con arista
+   * condicional + checkpointer por correlationId). El ticket, con su
+   * propuesta de resolución, se persiste en el nodo "analizar"; si
+   * needsHumanReview es true, el grafo pasa por el nodo "esperarRevisionHumana"
+   * (pausa HITL a nivel de aplicación — ver nota en resolutionGraph.js sobre
+   * por qué no se usa interrupt() de LangGraph.js en un sistema client-side).
    */
   async procesarReclamo({ usuarioId = 'USR-001', ordenId = null, textoQueja }) {
     this._metrics.totalOrchestrations++
@@ -186,29 +182,12 @@ class AgentOrchestratorClass {
       { configurable: { thread_id: correlationId } },
     )
 
-    if (finalState.ticket?.ticketId) {
-      this._ticketThreads.set(finalState.ticket.ticketId, correlationId)
-    }
-
     return { success: true, result: finalState.ticket, agentName: resolutionAgent.name }
   }
 
-  /**
-   * resolverTicketManualmente — Aplica la decisión humana al ticket y, si el
-   * hilo del grafo quedó interrumpido esperando revisión, lo reanuda con
-   * `new Command({ resume })` (fire-and-forget: no bloquea la respuesta al
-   * staff, solo mantiene el checkpoint de LangGraph consistente).
-   */
+  /** resolverTicketManualmente — Aplica la decisión humana al ticket (HITL). */
   resolverTicketManualmente(ticketId, resolucionAprobada) {
-    const res = resolutionAgent.resolverTicketManualmente(ticketId, resolucionAprobada)
-    const threadId = this._ticketThreads.get(ticketId)
-    if (res.exito && threadId) {
-      resolutionGraph
-        .invoke(new Command({ resume: resolucionAprobada }), { configurable: { thread_id: threadId } })
-        .catch((err) => console.warn('[Orchestrator] No se pudo reanudar el grafo de resolución:', err.message))
-      this._ticketThreads.delete(ticketId)
-    }
-    return res
+    return resolutionAgent.resolverTicketManualmente(ticketId, resolucionAprobada)
   }
 
   getTicketsStore() { return resolutionAgent.getTicketsStore() }
