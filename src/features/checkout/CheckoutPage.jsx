@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { CreditCard, CheckCircle2, XCircle, Package, Bell, Boxes } from 'lucide-react'
 import { useCart } from '../../context/CartContext.jsx'
@@ -18,12 +18,7 @@ export default function CheckoutPage() {
   const [metodoPago, setMetodoPago] = useState('tarjeta')
   const [procesando, setProcesando] = useState(false)
   const [resultado, setResultado] = useState(null)
-  const [carrito, setCarrito] = useState(null)
-
-  useEffect(() => {
-    if (!items.length || !productos.length) return
-    setCarrito(validarItemsCarrito(items, productos))
-  }, [items, productos])
+  const carrito = items.length && productos.length ? validarItemsCarrito(items, productos) : null
 
   if (!items.length && !resultado) {
     navigate('/carrito')

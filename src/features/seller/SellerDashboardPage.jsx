@@ -22,6 +22,7 @@ export default function SellerDashboardPage() {
         <MetricCard icon={<TrendingUp size={18} />} label="Revenue total" value={formatSoles(totalRevenue)} />
         <MetricCard icon={<Package size={18} />} label="Pedidos totales" value={ordersStore.length} />
         <MetricCard icon={<Clock size={18} />} label="Pendientes de despacho" value={pendientes} />
+        <MetricCard icon={<Truck size={18} />} label="Tasa de despacho" value={`${tasaDespacho}%`} />
         <MetricCard icon={<LifeBuoy size={18} />} label="Reclamos HITL Pendientes" value={reclamosPendientes} />
       </div>
 

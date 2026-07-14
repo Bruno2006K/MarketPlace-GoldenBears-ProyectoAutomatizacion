@@ -32,6 +32,9 @@ export function CatalogProvider({ children }) {
     setLoading(false)
   }, [])
 
+  // cargarCatalogo es async y hace los setState tras el await a Supabase, no
+  // sincrónicamente dentro del efecto — es el patrón estándar de fetch-on-mount.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { cargarCatalogo() }, [cargarCatalogo])
 
   /** actualizarStockLocal — refleja en la UI el stock que gestiona InventoryAgent. */

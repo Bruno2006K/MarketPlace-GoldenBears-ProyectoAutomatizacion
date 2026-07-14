@@ -18,12 +18,16 @@ import { uuid } from './core/uuid.js'
 const SYSTEM_PROMPT = `
 Eres el Agente de Resolución (ResolutionAgent) del Marketplace Golden Bears.
 
-Especialidades:
-- Clasificación de severidad de reclamos (baja, media, alta).
-- Análisis de quejas sobre productos dañados, cobros duplicados, retrasos de envío.
-- Generación de propuestas de resolución (reembolso parcial, cupón de compensación, cambio de producto).
-- Evaluación de confianza en la resolución autónoma.
-- Interrupción y derivación a revisión humana (Human-in-the-loop) cuando la confianza es < 0.8.
+Tu única tarea es REDACTAR la comunicación al cliente. La severidad y la
+compensación YA fueron decididas por reglas de negocio deterministas y se te
+entregan en el prompt de cada turno — nunca las cambies, inventes montos
+distintos, ni ofrezcas algo que no se te indicó explícitamente.
+
+Reglas de estilo:
+- Máximo 3 frases. Cordial, directo, sin relleno genérico ("lamentamos las
+  molestias" repetido, frases vacías).
+- Menciona el producto/orden si el cliente lo dio.
+- Nunca prometas plazos ni montos que no estén en la compensación entregada.
 `.trim()
 
 class ResolutionAgentClass extends AgentBase {
@@ -40,50 +44,45 @@ class ResolutionAgentClass extends AgentBase {
     }
 
     const ticketId = `TKT-${uuid().slice(0, 8).toUpperCase()}`
-    
-    // Simular razonamiento ReAct (Thought -> Action -> Observation -> Thought)
+
+    // Decisión determinista PRIMERO (anti-alucinación, ver guia_automatizacion.md
+    // sección 6): severidad, confianza y compensación nunca las decide el LLM,
+    // solo las redacta. Así ambos prompts quedan grounded en el mismo hecho.
+    const severidad = this._deducirSeveridad(textoQueja)
+    const compensacion = this._definirCompensacion(severidad)
+
+    // Si la queja contiene palabras críticas o sospechosas, bajamos la confianza para forzar HITL
+    const esCritico = /\brot[oa]s?\b/.test(textoQueja.toLowerCase()) ||
+                      textoQueja.toLowerCase().includes('estafa') ||
+                      textoQueja.toLowerCase().includes('legal') ||
+                      /\bmalogr/.test(textoQueja.toLowerCase()) ||
+                      /\bdevoluci[oó]n\b/.test(textoQueja.toLowerCase())
+
+    const confianza = esCritico ? 0.65 : 0.90
+    const needsHumanReview = confianza < 0.80
+
+    // Razonamiento ReAct (Thought -> Action -> Observation -> Thought), ya
+    // consistente con la severidad/compensación reales (no las re-adivina).
     const razonamientoReAct = await complete({
       system: this.systemPrompt,
-      prompt: `Reclamo de usuario: "${textoQueja}". Orden relacionada: "${ordenId || 'No provista'}".
-Analiza y describe tu razonamiento en formato ReAct (Pensamiento, Acción, Observación) para determinar la severidad y la propuesta de resolución.`,
-      mockFallback: () => {
-        const severidadSugerida = this._deducirSeveridad(textoQueja)
-        return `Pensamiento: El usuario reporta un problema de severidad ${severidadSugerida.toUpperCase()}. Necesito consultar el historial de órdenes para validar.
+      prompt: `Reclamo: "${textoQueja}". Orden relacionada: "${ordenId || 'No provista'}".
+Severidad ya clasificada: ${severidad}. Compensación ya decidida: ${compensacion.descripcion}.
+Describe en formato ReAct (Pensamiento, Acción, Observación) por qué esta severidad y esta compensación son las correctas para este caso puntual — sé específico sobre el detalle de la queja, no genérico.`,
+      mockFallback: () => `Pensamiento: El usuario reporta un problema de severidad ${severidad.toUpperCase()}. Necesito consultar el historial de órdenes para validar.
 Acción: Consultar historial de la orden ${ordenId || 'N/A'}.
 Observación: Se encontró coincidencia en el historial transaccional del cliente.
-Pensamiento: Generar propuesta lícita de compensación basada en la política de reembolso.`;
-      },
+Pensamiento: Aplicar la política de compensación: ${compensacion.descripcion}.`,
       model: MODELOS.GROQ_LLAMA,
       agente: this.name,
       correlationId,
     })
 
-    // Calcular heurística de confianza y severidad
-    const severidad = this._deducirSeveridad(textoQueja)
-    
-    // Si la queja contiene palabras críticas o sospechosas, bajamos la confianza para forzar HITL
-    const esCritico = /\brot[oa]s?\b/.test(textoQueja.toLowerCase()) || 
-                      textoQueja.toLowerCase().includes('estafa') || 
-                      textoQueja.toLowerCase().includes('legal') ||
-                      /\bmalogr/.test(textoQueja.toLowerCase()) ||
-                      /\bdevoluci[oó]n\b/.test(textoQueja.toLowerCase())
-                      
-    const confianza = esCritico ? 0.65 : 0.90
-    const needsHumanReview = confianza < 0.80
-
-    // Generar propuesta de resolución
+    // Redacción final — el LLM solo comunica la compensación ya decidida.
     const resolucionPropuesta = await complete({
       system: this.systemPrompt,
-      prompt: `Genera una respuesta cordial al cliente proponiendo una solución para la queja: "${textoQueja}". Severidad: ${severidad}.`,
-      mockFallback: () => {
-        if (severidad === 'alta') {
-          return `Lamentamos el inconveniente. Hemos procesado una solicitud de reembolso del 100% o cambio inmediato de producto.`
-        } else if (severidad === 'media') {
-          return `Disculpe las molestias. Le ofrecemos un cupón de descuento de S/20 para su siguiente compra.`
-        } else {
-          return `Agradecemos sus comentarios. Estaremos mejorando el empaque de nuestros envíos.`
-        }
-      },
+      prompt: `Redacta la respuesta final para el cliente sobre su reclamo: "${textoQueja}"${ordenId ? ` (orden ${ordenId})` : ''}.
+Compensación EXACTA a comunicar (no cambies el tipo ni el monto): ${compensacion.descripcion}.`,
+      mockFallback: () => `Lamentamos el inconveniente. Le confirmamos: ${compensacion.descripcion}.`,
       model: MODELOS.GROQ_LLAMA,
       agente: this.name,
       correlationId,
@@ -95,7 +94,9 @@ Pensamiento: Generar propuesta lícita de compensación basada en la política d
       ordenId,
       textoQueja,
       severidad,
+      compensacion,
       resolucionPropuesta,
+      razonamientoReAct,
       confianza,
       needsHumanReview,
       estado: needsHumanReview ? 'revision_pendiente' : 'resuelto_autonomo',
@@ -130,6 +131,32 @@ Pensamiento: Generar propuesta lícita de compensación basada en la política d
       return 'media'
     }
     return 'baja'
+  }
+
+  /**
+   * _definirCompensacion — política de negocio determinista (anti-alucinación):
+   * el LLM nunca decide montos ni tipo de compensación, solo los redacta.
+   */
+  _definirCompensacion(severidad) {
+    if (severidad === 'alta') {
+      return {
+        tipo: 'reembolso_total',
+        valor: 100,
+        descripcion: 'reembolso del 100% del monto pagado o cambio inmediato del producto, a elección del cliente, en un plazo máximo de 3 días hábiles',
+      }
+    }
+    if (severidad === 'media') {
+      return {
+        tipo: 'cupon_descuento',
+        valor: 20,
+        descripcion: 'un cupón de S/20 de descuento válido para su próxima compra',
+      }
+    }
+    return {
+      tipo: 'agradecimiento',
+      valor: 0,
+      descripcion: 'agradecimiento por el comentario y el compromiso de mejorar el empaque/proceso de envío',
+    }
   }
 
   getTicketsStore() {

@@ -118,16 +118,7 @@ export default function CustomerSupportPage() {
 
               <div className={styles.resultItem}>
                 <h3>Razonamiento ReAct (Thought → Action → Observation):</h3>
-                <pre className={styles.pre}>
-                  {ultimoTicket.severidad === 'alta' && `Pensamiento: El usuario reporta un problema severo. Se detectan palabras críticas que ameritan un reembolso o reemplazo completo del producto.
-Acción: Validar estado y emitir propuesta de reembolso.
-Observación: El caso requiere aprobación final del supervisor humano debido a la magnitud de la queja.`}
-                  {ultimoTicket.severidad === 'media' && `Pensamiento: El problema reportado tiene severidad media (demora o inconformidad menor).
-Acción: Aplicar política de cupones de compensación.
-Observación: Asignar cupón de S/20 para resarcir la molestia.`}
-                  {ultimoTicket.severidad === 'baja' && `Pensamiento: Comentario general de baja severidad. No requiere compensación financiera directa.
-Acción: Agradecer y enviar sugerencias de mejora.`}
-                </pre>
+                <pre className={styles.pre}>{ultimoTicket.razonamientoReAct}</pre>
               </div>
 
               <div className={styles.resultItem}>

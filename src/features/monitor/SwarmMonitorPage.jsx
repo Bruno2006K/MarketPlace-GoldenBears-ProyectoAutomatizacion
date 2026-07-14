@@ -1,5 +1,6 @@
 import { useAgents } from '../../context/AgentContext.jsx'
 import AgentStatusPanel from '../../components/ui/AgentStatusPanel.jsx'
+import { llmMode, MODELOS } from '../../agents/core/llmClient.js'
 import styles from './SwarmMonitorPage.module.css'
 
 export default function SwarmMonitorPage() {
@@ -9,6 +10,12 @@ export default function SwarmMonitorPage() {
     <div className="container">
       <h1 className={styles.title}>Monitor del Sistema Multiagente</h1>
       <p className={styles.subtitle}>Topología híbrida (Estrella + Cadena) · Event Bus con validación de JSON Schema (MCP)</p>
+
+      <div className={`${styles.llmModeBadge} ${llmMode === 'proxy' ? styles.llmModeProxy : styles.llmModeMock}`}>
+        {llmMode === 'proxy'
+          ? `🟢 LLM en modo PROXY — llamando de verdad a ${MODELOS.GROQ_LLAMA.model} (Groq) y ${MODELOS.GEMINI_FLASH.model} (Gemini) vía /api/llm`
+          : '🟡 LLM en modo MOCK — respuestas simuladas, sin llamadas reales a Groq/Gemini (VITE_USE_PROXY no está en "true" en este build)'}
+      </div>
 
       <AgentStatusPanel />
 

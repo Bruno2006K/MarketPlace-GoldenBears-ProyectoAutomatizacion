@@ -37,7 +37,10 @@ export default function CatalogPage() {
     setBuscando(false)
   }, [productos, buscarProductos])
 
-  useEffect(() => { ejecutarBusqueda(query, categoria) }, [productos]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ejecutarBusqueda es async y hace los setState tras el await al SearchAgent,
+  // no sincrónicamente dentro del efecto — patrón estándar de fetch-on-mount.
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { ejecutarBusqueda(query, categoria) }, [productos])
 
   const handleSubmit = (e) => {
     e.preventDefault()
