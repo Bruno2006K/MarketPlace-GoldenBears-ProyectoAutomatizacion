@@ -1,4 +1,3 @@
-/* global process */
 // Este archivo corre en Node (dev server), no en el navegador.
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
