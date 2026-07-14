@@ -30,6 +30,12 @@ if (!url || !key) {
 const supabase = createClient(url, key)
 
 const GEMINI_EMBED_URL = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent'
+// gemini-embedding-001 no siempre honra `outputDimensionality` en la
+// respuesta (devuelve los 3072 completos igual) — como es un modelo
+// entrenado con Matryoshka Representation Learning, truncar a un prefijo
+// sigue siendo un embedding válido. Debe coincidir con `vector(768)` en
+// 01_golden_bears_schema.sql y con api/embed.js.
+const EMBED_DIMENSIONS = 768
 
 async function embeddingDeProducto(producto) {
   const texto = `${producto.nombre}. Categoría: ${producto.categoria}. Marca: ${producto.marca}. ${producto.descripcion || ''} Tags: ${(producto.tags || []).join(', ')}`
@@ -38,12 +44,13 @@ async function embeddingDeProducto(producto) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       content: { parts: [{ text: texto }] },
-      embedContentConfig: { taskType: 'RETRIEVAL_DOCUMENT', outputDimensionality: 768 },
+      embedContentConfig: { taskType: 'RETRIEVAL_DOCUMENT', outputDimensionality: EMBED_DIMENSIONS },
     }),
   })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(body?.error?.message || `HTTP ${res.status}`)
-  return body.embedding?.values || null
+  const values = body.embedding?.values || null
+  return values ? values.slice(0, EMBED_DIMENSIONS) : null
 }
 
 async function conEmbeddings(productos) {
